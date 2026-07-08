@@ -1,13 +1,14 @@
 #!/bin/bash
 
 # ==============================================================================
-# SOLO DORK - Local Web Server Launcher
+# SOLO DORK - Safe Local Web Server Launcher
 # ==============================================================================
 
-# Temporary filename to host the UI
-HTML_FILE="index.html"
+# Create a secure temporary directory
+TMP_DIR=$(mktemp -d /tmp/solodork.XXXXXX)
+HTML_FILE="$TMP_DIR/index.html"
 
-# Write the embedded HTML content to index.html
+# Write the embedded HTML content to the temporary index.html
 cat << 'EOF' > "$HTML_FILE"
 <!DOCTYPE html>
 <html lang="en">
@@ -459,44 +460,45 @@ function copyDork() {
 </html>
 EOF
 
-# Find an available port starting at 8080
-PORT=8080
-while lsof -i :$PORT >/dev/null 2>&1; do
-    PORT=$((PORT+1))
-done
-
-echo -e "\e[1;36m[+] Starting SOLO DORK Local Server on http://127.0.0.1:$PORT...\e[0m"
-
-# Spin up python server in background
-python3 -m http.server $PORT > /dev/null 2>&1 &
-SERVER_PID=$!
-
-# Give the server a second to initialize
-sleep 1
-
-# Open in standard browsers
-if command -v firefox >/dev/null 2>&1; then
-    echo -e "\e[1;32m[+] Opening Firefox...\e[0m"
-    firefox "http://127.0.0.1:$PORT" > /dev/null 2>&1 &
-elif command -v xdg-open >/dev/null 2>&1; then
-    echo -e "\e[1;32m[+] Opening browser...\e[0m"
-    xdg-open "http://127.0.0.1:$PORT" > /dev/null 2>&1 &
+# Find a dynamic free port using python to avoid any collision
+if command -v python3 >/dev/null 2>&1; then
+    PORT=$(python3 -c 'import socket; s = socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')
 else
-    echo -e "\e[1;33m[!] No browser launcher detected. Please open http://127.0.0.1:$PORT in Firefox.\e[0m"
+    PORT=8080
 fi
 
-echo -e "\e[1;34m[!] Press [Ctrl+C] to stop the server and clean up.\e[0m"
+# Change directory to the temp space to serve only our index.html securely
+cd "$TMP_DIR" || exit 1
 
-# Clean up server index.html and server PID on exit
+# Start python HTTP server
+python3 -m http.server "$PORT" > /dev/null 2>&1 &
+SERVER_PID=$!
+
+# Let server bind to socket
+sleep 0.5
+
+# Automatically launch default browser
+if command -v firefox >/dev/null 2>&1; then
+    firefox "http://127.0.0.1:$PORT" > /dev/null 2>&1 &
+elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "http://127.0.0.1:$PORT" > /dev/null 2>&1 &
+else
+    echo -e "\e[1;33m[!] Could not find automatic launcher. Please visit http://127.0.0.1:$PORT in your browser.\e[0m"
+fi
+
+echo -e "\e[1;36m[+] SOLO DORK server is live on http://127.0.0.1:$PORT\e[0m"
+echo -e "\e[1;34m[!] Press [Ctrl+C] to stop server and clean up.\e[0m"
+
+# Handle graceful exit
 cleanup() {
-    echo -e "\n\e[1;31m[-] Stopping server and cleaning up temporary files...\e[0m"
-    kill $SERVER_PID 2>/dev/null
-    rm -f "$HTML_FILE"
+    echo -e "\n\e[1;31m[-] Stopping server and cleaning up temp files...\e[0m"
+    kill "$SERVER_PID" 2>/dev/null
+    rm -rf "$TMP_DIR"
     exit 0
 }
 
-# Trap terminal interrupt to clean up properly
+# Trap terminal shutdown signals
 trap cleanup INT TERM EXIT
 
-# Wait on Python server process
-wait $SERVER_PID
+# Wait on background HTTP server
+wait "$SERVER_PID"
