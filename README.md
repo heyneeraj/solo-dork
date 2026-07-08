@@ -34,3 +34,52 @@ SOLO DORK is designed for:
 This project is provided for educational purposes and authorized security testing only. Users are responsible for ensuring that their activities comply with applicable laws, website terms of service, and ethical guidelines. The authors do not support or encourage unauthorized access, misuse, or illegal activities.
 
 
+# Installation
+
+## Clone the Repository
+
+```bash
+git clone https://github.com/heyneeraj/solo-dork.git
+```
+
+## Navigate to the Project Directory
+
+```bash
+cd solo-dork
+```
+
+## Make the Launcher Executable
+
+```bash
+chmod +x solodork.sh
+```
+
+## Launch SOLO DORK
+
+```bash
+./solodork.sh
+```
+
+---
+
+## Requirements
+
+* Linux (Kali Linux recommended)
+* Bash
+* A modern web browser (Firefox, Chromium, or Google Chrome)
+
+---
+
+## Troubleshooting
+
+If you receive a **Permission denied** error, run:
+
+```bash
+chmod +x solodork.sh
+```
+
+If the launcher still does not execute, try:
+
+```bash
+bash solodork.sh
+```
